@@ -16,7 +16,8 @@ Computers save to `Downloads/Ferry` (folder structure kept); phones and browsers
 
 ## Features
 
-- **Instant discovery** over UDP broadcast, with a subnet scan as fallback. Nothing to type, no codes, no QR codes.
+- **Instant discovery** over UDP broadcast, with a subnet scan as fallback. Nothing to type.
+- **Codes, as an option.** On Send, *Get a code instead* gives a 6‑digit code valid for an hour. On the other device, type it under **Receive** to download — Ferry also looks on other devices on the Wi‑Fi for it.
 - **Clipboard sync.** On computers, anything you copy can sync to paired devices within a second, and received text lands straight in the clipboard. On Android, received text is copied even with the app in the background. Android doesn't let apps read the clipboard in the background, so sending from the phone is one tap.
 - **Messages.** A small chat thread with any nearby device, for context like "logs attached, check line 40". Notes typed with a transfer are shown in the accept prompt.
 - **Preview before accepting.** In the Accept / Refuse prompt, play videos and music, view photos, PDFs and text, or list what's inside a .zip, streamed from the sender.
@@ -24,7 +25,8 @@ Computers save to `Downloads/Ferry` (folder structure kept); phones and browsers
 - **Always ready.** Android keeps a small background service running, optionally starts with the phone, and asks to be exempted from battery restrictions. Desktop apps live in the tray and can start at login.
 - **Privacy on shared Wi‑Fi.** Turn off *Allow requests from unpaired devices* so only paired devices can send or message you, and *Ask other browsers for a PIN* so nobody else can open your device. Wrong guesses are rate‑limited.
 - **History** of everything sent and received (files, text, clipboard), with sizes, times, status ("Received by Pixel 8") and shortcuts to the files.
-- **Hotspot mode (Android).** With no router around, the phone starts its own Wi‑Fi network; the screen shows its name and password for the other device to join.
+- **No Wi‑Fi? Send over a hotspot (Android).** On the sending phone choose *No Wi‑Fi? Send over a hotspot*: it starts a hotspot with a random name and shows a QR code. On the other phone open Ferry → Receive → *Scan the sender's code*; it joins the hotspot by itself and appears in the sender's device list, then accepts the file as usual. A computer can join too using the name and password shown under the QR. Works phone → phone, phone → PC, and PC → phone (the PC joins the phone's hotspot).
+- **Windows app window** has Ferry's own title bar (minimize / maximize / close built into the header, drag anywhere empty) instead of the standard Windows frame. Needs the WebView2 runtime that ships with Windows 10/11; without it Ferry opens in an Edge app window.
 - Multiple files and whole folders, resumable uploads, no size limit, paste with Ctrl+V, drag and drop, "Share to Ferry" from Android's share menu.
 
 ## Command line
@@ -44,15 +46,15 @@ echo "some text" | ferry clip            # send text to paired devices (no argum
 ferry message Pixel "on my way"
 ```
 
-On Windows, run `Ferry-3.1.0-windows-x64.exe <command>` from a terminal (rename it to `ferry.exe` for convenience).
+On Windows, run `Ferry-3.2.0-windows-x64.exe <command>` from a terminal (rename it to `ferry.exe` for convenience).
 
 ## Install
 
 | Platform | File | Notes |
 |---|---|---|
-| Android 7+ | `Ferry-3.1.0-android.apk` | Allow "install unknown apps" for your browser or file manager. |
-| Windows 10/11 | `Ferry-3.1.0-windows-x64.exe` | Single file. SmartScreen may warn because it isn't code‑signed ("More info → Run anyway"). Allow it through the firewall on **private** networks. |
-| Linux | `Ferry-3.1.0-linux-x64.tar.gz` | Extract and run `./install.sh`, or just `./ferry`. |
+| Android 7+ | `Ferry-3.2.0-android.apk` | Allow "install unknown apps" for your browser or file manager. |
+| Windows 10/11 | `Ferry-3.2.0-windows-x64.exe` | Single file. SmartScreen may warn because it isn't code‑signed ("More info → Run anyway"). Allow it through the firewall on **private** networks. |
+| Linux | `Ferry-3.2.0-linux-x64.tar.gz` | Extract and run `./install.sh`, or just `./ferry`. |
 | macOS | built by the GitHub workflow | Needs a Mac to build the menu‑bar version (see below). |
 
 ### Network

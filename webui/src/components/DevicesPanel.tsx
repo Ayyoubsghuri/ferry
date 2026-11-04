@@ -34,14 +34,21 @@ function PairSheet({ me, onClose, onPaired }: { me: Me; onClose: () => void; onP
   const [left, setLeft] = useState(300);
   const pairedRef = useRef(false);
 
+  // The parent re-renders often (device list refresh); keep its callbacks in refs so the
+  // PIN is created once per opening, not on every refresh.
+  const onCloseRef = useRef(onClose);
+  const onPairedRef = useRef(onPaired);
+  onCloseRef.current = onClose;
+  onPairedRef.current = onPaired;
+
   const start = useCallback(async () => {
     try {
       setSession(await api.pairStart());
     } catch (e: any) {
       toast(e.message);
-      onClose();
+      onCloseRef.current();
     }
-  }, [onClose]);
+  }, []);
 
   useEffect(() => {
     start();
@@ -59,14 +66,14 @@ function PairSheet({ me, onClose, onPaired }: { me: Me; onClose: () => void; onP
         if (st.paired) {
           pairedRef.current = true;
           setPaired(st.paired.name);
-          onPaired();
+          onPairedRef.current();
         }
       } catch {
         /* keep polling */
       }
     }, 1000);
     return () => clearInterval(t);
-  }, [session, paired, onPaired]);
+  }, [session, paired]);
 
   return (
     <Sheet title="Pair a device" onClose={onClose}>
@@ -140,7 +147,8 @@ function PinPairSheet({ device, onClose, onPaired }: { device: Device; onClose: 
         setPin('');
       })
       .finally(() => setBusy(false));
-  }, [pin, device, onClose, onPaired]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pin, device.id]);
 
   return (
     <Sheet title={`Pair with ${device.name}`} onClose={onClose}>

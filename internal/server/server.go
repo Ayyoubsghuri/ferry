@@ -44,6 +44,7 @@ type Config struct {
 	SetStartAtLogin func(on bool) error // desktop: start Ferry when the user logs in
 	AutoAccept     bool               // accept everything from paired devices (headless servers)
 	NoLocalOwner   bool               // testing: browsers on this computer's LAN address count as guests
+	ShowWindow     func(url string)   // desktop: bring the app window forward
 }
 
 type Server struct {
@@ -271,6 +272,14 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("GET /api/clipboard", s.ownerOnly(s.handleClipboardList))
 	mux.HandleFunc("/api/history", s.ownerOnly(s.handleHistory))
 	mux.HandleFunc("POST /api/open-folder", s.ownerOnly(s.handleOpenFolder))
+	mux.HandleFunc("POST /api/show-window", s.ownerOnly(func(w http.ResponseWriter, r *http.Request) {
+		if s.cfg.ShowWindow == nil {
+			jsonErr(w, 404, "No window on this device")
+			return
+		}
+		go s.cfg.ShowWindow(s.LocalURL())
+		writeJSON(w, 200, map[string]any{"ok": true})
+	}))
 
 	mux.HandleFunc("POST /api/peer/offer", s.peerOnly(s.handlePeerOffer))
 	mux.HandleFunc("POST /api/peer/status", s.peerOnly(s.handlePeerStatus))

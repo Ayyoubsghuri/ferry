@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowUpFromLine, FolderUp, Plus, X, Send, Check, RefreshCw, Globe } from 'lucide-react';
+import { ArrowUpFromLine, FolderUp, Plus, X, Send, Check, RefreshCw, Globe, Hash, WifiOff, Trash2 } from 'lucide-react';
 import { api, guestApi, type Device, type Me, type Outgoing } from '../lib/api';
 import { filesFromDrop, uploadAll, type PickedFile, type Progress } from '../lib/upload';
 import { formatBytes, isAndroidApp, supportsFolderPick, takeAndroidShared } from '../lib/util';
-import { KindIcon, Progress as Bar } from './common';
+import { KindIcon, Progress as Bar, QR, Sheet, toast } from './common';
 import { PlatformIcon } from './DevicesPanel';
 
 type Phase = 'compose' | 'uploading' | 'sending' | Outgoing['state'];
@@ -34,6 +34,51 @@ export function SendPanel({ me, active, devicesVersion }: { me: Me | null; activ
   const folderInput = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const canFolder = supportsFolderPick() && !isAndroidApp();
+  const [codeView, setCodeView] = useState<{ code: string; owner: string; expiresAt: string } | null>(null);
+  const [making, setMaking] = useState<number | null>(null);
+  const [hotspot, setHotspot] = useState(false);
+  const canHotspot = isAndroidApp() && !!(window as any).FerryAndroid?.hotspotSupported?.();
+  const known = useRef<Set<string> | null>(null);
+
+  // While the hotspot sheet is open, the first new browser that connects is the other phone.
+  useEffect(() => {
+    if (!devices) return;
+    if (!hotspot) {
+      known.current = null;
+      return;
+    }
+    if (known.current === null) {
+      known.current = new Set(devices.map((d) => d.id));
+      return;
+    }
+    const fresh = devices.find((d) => !known.current!.has(d.id));
+    if (fresh) {
+      setTarget(fresh.id);
+      setHotspot(false);
+      toast(`${fresh.name} connected`);
+    }
+  }, [devices, hotspot]);
+
+  async function makeCode() {
+    if (!hasContent) return;
+    setMaking(0);
+    try {
+      const share = await api.create({
+        text,
+        expiresMinutes: 60,
+        sender: me?.name || '',
+        files: files.map((f) => ({ name: f.path, size: f.file.size, storedSize: f.file.size, type: f.file.type })),
+      });
+      if (files.length) {
+        await uploadAll(share, share.owner!, files, null, (p: Progress) => setMaking(p.sent / Math.max(p.total, 1)), new AbortController().signal);
+      }
+      setCodeView({ code: share.code, owner: share.owner!, expiresAt: share.expiresAt });
+    } catch (e: any) {
+      toast(`Couldn't create a code: ${e.message}`);
+    } finally {
+      setMaking(null);
+    }
+  }
 
   const addFiles = useCallback((list: PickedFile[]) => {
     if (!list.length) return;
@@ -177,6 +222,47 @@ export function SendPanel({ me, active, devicesVersion }: { me: Me | null; activ
       setFiles([]);
       setText('');
     }
+  }
+
+  if (codeView) {
+    return (
+      <section className="panel stack" aria-labelledby="send-h">
+        <div className="delivery">
+          <h2 id="send-h">Your code</h2>
+          <div className="pin-ticket" aria-label={`Code ${codeView.code.split('').join(' ')}`}>
+            <b>
+              {codeView.code.slice(0, 3)} {codeView.code.slice(3)}
+            </b>
+          </div>
+          <p className="muted" style={{ margin: 0, maxWidth: 420 }}>
+            On the other device, open Receive and type this code. It works for an hour on any device on this Wi-Fi.
+          </p>
+        </div>
+        <div className="row">
+          <button
+            className="btn"
+            style={{ flex: 1 }}
+            onClick={async () => {
+              await api.remove(codeView.code, codeView.owner).catch(() => {});
+              setCodeView(null);
+              toast('Code deleted');
+            }}
+          >
+            <Trash2 size={18} aria-hidden /> Delete
+          </button>
+          <button
+            className="btn primary"
+            style={{ flex: 2 }}
+            onClick={() => {
+              setCodeView(null);
+              reset();
+            }}
+          >
+            Done
+          </button>
+        </div>
+      </section>
+    );
   }
 
   if (job) {
@@ -391,6 +477,96 @@ export function SendPanel({ me, active, devicesVersion }: { me: Me | null; activ
         <Send size={20} aria-hidden />
         {!hasContent ? 'Choose files or write something' : !chosen ? 'Choose a device' : `Send to ${chosen.name}`}
       </button>
+
+      <div className="alt-actions">
+        <button className="btn ghost" disabled={!hasContent || making !== null} onClick={makeCode}>
+          <Hash size={17} aria-hidden />
+          {making !== null ? `Preparing ${Math.round(making * 100)}%` : 'Get a code instead'}
+        </button>
+        {canHotspot ? (
+          <button className="btn ghost" onClick={() => setHotspot(true)}>
+            <WifiOff size={17} aria-hidden /> No Wi-Fi? Send over a hotspot
+          </button>
+        ) : null}
+      </div>
+      {hotspot ? <HotspotSendSheet name={me?.name || 'Ferry'} onClose={() => setHotspot(false)} /> : null}
     </section>
+  );
+}
+
+interface HotspotState {
+  state: 'off' | 'starting' | 'on' | 'error';
+  ssid?: string;
+  password?: string;
+  ip?: string;
+  port?: number;
+  message?: string;
+}
+
+/** Starts this phone's own Wi-Fi and shows a code the other phone scans to join it. */
+function HotspotSendSheet({ name, onClose }: { name: string; onClose: () => void }) {
+  const bridge = (window as any).FerryAndroid;
+  const [hs, setHs] = useState<HotspotState>({ state: 'starting' });
+  useEffect(() => {
+    const on = (e: Event) => setHs((e as CustomEvent).detail as HotspotState);
+    window.addEventListener('ferry-hotspot', on);
+    try {
+      const cur = JSON.parse(bridge.hotspotState());
+      if (cur.state === 'on' && cur.ip) setHs(cur);
+      else bridge.startHotspot();
+    } catch {
+      bridge.startHotspot();
+    }
+    return () => window.removeEventListener('ferry-hotspot', on);
+  }, [bridge]);
+
+  const q = (v: string) => encodeURIComponent(v);
+  const code =
+    hs.state === 'on' && hs.ssid && hs.ip
+      ? `ferry://join?s=${q(hs.ssid)}&p=${q(hs.password || '')}&h=${hs.ip}&port=${hs.port || 7070}&n=${q(name)}`
+      : '';
+  return (
+    <Sheet title="Send over a hotspot" onClose={onClose}>
+      <div className="stack">
+        <div className="sheet-head">
+          <div>
+            <h2>Send over a hotspot</h2>
+            <p className="muted" style={{ margin: '6px 0 0' }}>
+              On the other phone, open Ferry, go to Receive and tap Scan the sender's code.
+            </p>
+          </div>
+          <button className="btn ghost icon" aria-label="Close" onClick={onClose}>
+            <X size={20} aria-hidden />
+          </button>
+        </div>
+        {hs.state === 'error' ? (
+          <div className="notice error">{hs.message}</div>
+        ) : code ? (
+          <>
+            <QR className="big-qr" value={code} />
+            <p className="muted small" style={{ margin: 0, textAlign: 'center' }}>
+              Waiting for the other phone to connect…
+            </p>
+            <div className="addr">
+              <span className="small">
+                A computer can join too: Wi-Fi <b>{hs.ssid}</b>, password <b>{hs.password}</b>, then open Ferry or
+                http://{hs.ip}:{hs.port || 7070}
+              </span>
+            </div>
+          </>
+        ) : (
+          <p className="muted">Starting the hotspot…</p>
+        )}
+        <button
+          className="btn"
+          onClick={() => {
+            bridge.stopHotspot();
+            onClose();
+          }}
+        >
+          Stop hotspot
+        </button>
+      </div>
+    </Sheet>
   );
 }

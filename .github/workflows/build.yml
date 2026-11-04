@@ -1,0 +1,100 @@
+name: Build apps
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  VERSION: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '3.2.0' }}
+
+jobs:
+  windows-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version: '1.24' }
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - name: Fetch Go modules
+        run: GOWORK=off go mod tidy
+      - name: Install rsrc (Windows icon)
+        run: go install github.com/akavel/rsrc@latest
+      - name: Build
+        run: |
+          export VERSION="${VERSION#v}" GOWORK=off
+          scripts/build.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-windows-linux
+          path: dist/*
+
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version: '1.24' }
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - name: Build
+        run: |
+          export VERSION="${VERSION#v}" GOWORK=off
+          go mod tidy
+          scripts/build.sh macos
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-macos
+          path: dist/*.zip
+
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version: '1.24' }
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '17' }
+      - name: Web UI
+        run: cd webui && npm ci --no-audit --no-fund && npm run build
+      - name: Server binaries for the app
+        run: |
+          export GOWORK=off CGO_ENABLED=0
+          go mod tidy
+          J=android/app/src/main/jniLibs
+          mkdir -p $J/arm64-v8a $J/armeabi-v7a $J/x86_64
+          V="${VERSION#v}"
+          GOOS=android GOARCH=arm64        go build -trimpath -ldflags "-s -w -X main.version=$V" -o $J/arm64-v8a/libferry.so .
+          GOOS=linux   GOARCH=arm GOARM=7  go build -trimpath -ldflags "-s -w -X main.version=$V" -o $J/armeabi-v7a/libferry.so .
+          GOOS=linux   GOARCH=amd64        go build -trimpath -ldflags "-s -w -X main.version=$V" -o $J/x86_64/libferry.so .
+      - name: Build APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleRelease
+          mkdir -p ../dist
+          cp app/build/outputs/apk/release/app-release.apk "../dist/Ferry-${VERSION#v}-android.apk"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: dist/*.apk
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [windows-linux, macos, android]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { path: dist, merge-multiple: true }
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true

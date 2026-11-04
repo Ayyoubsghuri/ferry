@@ -167,6 +167,28 @@ final class Bridge {
         });
     }
 
+    // ---- Hotspot join ----
+
+    @JavascriptInterface
+    public void joinHotspot(final String ssid, final String pass, final String url) {
+        act.runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                act.joinHotspot(ssid, pass, url);
+            }
+        });
+    }
+
+    @JavascriptInterface
+    public void leaveHotspot() {
+        act.leaveHotspot(true);
+    }
+
+    @JavascriptInterface
+    public boolean joinedHotspot() {
+        return act.joined;
+    }
+
     // ---- Appearance ----
 
     @JavascriptInterface

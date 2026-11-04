@@ -1726,3 +1726,69 @@ hr.or::after {
     opacity: 0;
   }
 }
+
+/* ---------- v5: alternatives, title bar ---------- */
+
+.alt-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 8px;
+  margin-top: -4px;
+}
+
+.alt-actions .btn {
+  min-height: 38px;
+  font-size: 0.9375rem;
+  color: var(--ink-2);
+}
+
+.alt-box {
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+}
+
+.alt-box b {
+  font-weight: 650;
+}
+
+/* Windows app window: the header is the title bar */
+.app.framed .topbar {
+  max-width: none;
+  padding: 8px 156px 8px 16px;
+  min-height: 52px;
+  user-select: none;
+}
+
+.app.framed .main {
+  padding-top: 8px;
+}
+
+.winctl {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 44px;
+  display: flex;
+  z-index: 70;
+}
+
+.winctl button {
+  width: 48px;
+  height: 44px;
+  border: 0;
+  background: transparent;
+  color: var(--ink-2);
+  display: grid;
+  place-items: center;
+}
+
+.winctl button:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+
+.winctl button.close:hover {
+  background: #c42b1c;
+  color: #fff;
+}

@@ -4,7 +4,7 @@
 #   scripts/build.sh macos      → macOS .app (run on a Mac; needs cgo for the menu-bar icon)
 set -euo pipefail
 cd "$(dirname "$0")/.."
-VERSION=${VERSION:-3.1.0}
+VERSION=${VERSION:-3.2.0}
 LDFLAGS="-s -w -X main.version=$VERSION"
 mkdir -p dist
 

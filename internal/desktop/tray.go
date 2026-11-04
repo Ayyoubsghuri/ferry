@@ -32,7 +32,7 @@ func RunTray(info TrayInfo) {
 		if runtime.GOOS != "darwin" {
 			systray.SetTitle("Ferry")
 		}
-		systray.SetOnTapped(func() { OpenApp(info.LocalURL) })
+		systray.SetOnTapped(func() { OpenWindow(info.LocalURL) })
 
 		open := systray.AddMenuItem("Open Ferry", "Show the Ferry window")
 		systray.AddSeparator()
@@ -48,7 +48,7 @@ func RunTray(info TrayInfo) {
 			for {
 				select {
 				case <-open.ClickedCh:
-					OpenApp(info.LocalURL)
+					OpenWindow(info.LocalURL)
 				case <-quit.ClickedCh:
 					systray.Quit()
 				}

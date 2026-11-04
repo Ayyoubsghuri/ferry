@@ -1,5 +1,20 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import QRCode from 'qrcode';
 import { File as FileIcon, FileImage, FileVideo, FileAudio, FileArchive, FileText, Folder } from 'lucide-react';
+
+export function QR({ value, className }: { value: string; className?: string }) {
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    if (ref.current && value) {
+      QRCode.toCanvas(ref.current, value, { margin: 0, width: 440, color: { dark: '#17211e', light: '#ffffff' } }).catch(() => {});
+    }
+  }, [value]);
+  return (
+    <div className={className}>
+      <canvas ref={ref} role="img" aria-label="QR code" />
+    </div>
+  );
+}
 
 export function fileKind(name: string, type?: string) {
   const ext = name.split('.').pop()?.toLowerCase() || '';

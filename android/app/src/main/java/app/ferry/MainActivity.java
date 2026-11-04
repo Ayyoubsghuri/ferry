@@ -7,7 +7,14 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.graphics.Insets;
+import android.net.ConnectivityManager;
+import android.net.Network;
+import android.net.NetworkCapabilities;
+import android.net.NetworkRequest;
 import android.net.Uri;
+import android.net.wifi.WifiConfiguration;
+import android.net.wifi.WifiManager;
+import android.net.wifi.WifiNetworkSpecifier;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -387,8 +394,136 @@ public class MainActivity extends Activity {
         fileCallback = null;
     }
 
+    // ---- Joining another phone's Ferry hotspot (scan its QR) ----
+
+    private ConnectivityManager.NetworkCallback joinCallback;
+    volatile boolean joined;
+
+    void emitJoin(final String state, final String message) {
+        ui.post(new Runnable() {
+            @Override
+            public void run() {
+                String js = "window.dispatchEvent(new CustomEvent('ferry-join',{detail:{state:" + jsq(state)
+                        + ",message:" + jsq(message == null ? "" : message) + "}}))";
+                web.evaluateJavascript(js, null);
+            }
+        });
+    }
+
+    static String jsq(String s) {
+        return "'" + s.replace("\\", "\\\\").replace("'", "\\'").replace("\n", " ") + "'";
+    }
+
+    @SuppressWarnings("deprecation")
+    void joinHotspot(final String ssid, final String pass, final String url) {
+        leaveHotspot(false);
+        final ConnectivityManager cm = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
+        emitJoin("connecting", null);
+        if (Build.VERSION.SDK_INT >= 29) {
+            WifiNetworkSpecifier spec = new WifiNetworkSpecifier.Builder()
+                    .setSsid(ssid).setWpa2Passphrase(pass).build();
+            NetworkRequest req = new NetworkRequest.Builder()
+                    .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
+                    .removeCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                    .setNetworkSpecifier(spec).build();
+            joinCallback = new ConnectivityManager.NetworkCallback() {
+                @Override
+                public void onAvailable(Network network) {
+                    // Route this app's traffic (the page and downloads) over the hotspot.
+                    cm.bindProcessToNetwork(network);
+                    joined = true;
+                    ui.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            web.loadUrl(url);
+                        }
+                    });
+                }
+
+                @Override
+                public void onUnavailable() {
+                    emitJoin("error", "Couldn't connect to " + ssid + ". Make sure the other phone is still showing its code.");
+                }
+
+                @Override
+                public void onLost(Network network) {
+                    if (joined) leaveHotspot(true);
+                }
+            };
+            try {
+                cm.requestNetwork(req, joinCallback, 60000);
+            } catch (Exception e) {
+                emitJoin("error", "This phone couldn't join the hotspot: " + e.getMessage());
+            }
+        } else {
+            // Android 9 and older: connect the usual way, then open the page once connected.
+            try {
+                WifiManager wm = (WifiManager) getApplicationContext().getSystemService(WIFI_SERVICE);
+                WifiConfiguration c = new WifiConfiguration();
+                c.SSID = "\"" + ssid + "\"";
+                c.preSharedKey = "\"" + pass + "\"";
+                int id = wm.addNetwork(c);
+                wm.disconnect();
+                wm.enableNetwork(id, true);
+                wm.reconnect();
+                joined = true;
+                new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        for (int i = 0; i < 40; i++) {
+                            try {
+                                Thread.sleep(500);
+                                java.net.HttpURLConnection h = (java.net.HttpURLConnection) new java.net.URL(url + "api/info").openConnection();
+                                h.setConnectTimeout(700);
+                                if (h.getResponseCode() == 200) {
+                                    ui.post(new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            web.loadUrl(url);
+                                        }
+                                    });
+                                    return;
+                                }
+                            } catch (Exception ignored) {
+                            }
+                        }
+                        emitJoin("error", "Couldn't reach the other phone. Connect to " + ssid + " in Wi-Fi settings and try again.");
+                    }
+                }).start();
+            } catch (Exception e) {
+                emitJoin("error", "Connect to " + ssid + " in Wi-Fi settings (password " + pass + ").");
+            }
+        }
+    }
+
+    void leaveHotspot(boolean reload) {
+        ConnectivityManager cm = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
+        if (Build.VERSION.SDK_INT >= 23) cm.bindProcessToNetwork(null);
+        if (joinCallback != null) {
+            try {
+                cm.unregisterNetworkCallback(joinCallback);
+            } catch (Exception ignored) {
+            }
+            joinCallback = null;
+        }
+        boolean was = joined;
+        joined = false;
+        if (reload && was) {
+            ui.post(new Runnable() {
+                @Override
+                public void run() {
+                    web.loadUrl(HOME);
+                }
+            });
+        }
+    }
+
     @Override
     public void onBackPressed() {
+        if (joined) {
+            leaveHotspot(true);
+            return;
+        }
         if (web.canGoBack()) web.goBack();
         else moveTaskToBack(true); // keep sharing in the background
     }

@@ -8,8 +8,8 @@ set -euo pipefail
 cd "$(dirname "$0")"
 ROOT=$(cd .. && pwd)
 OUT=${OUT:-$ROOT/dist}
-VERSION=${VERSION:-3.1.0}
-VCODE=${VCODE:-30100}
+VERSION=${VERSION:-3.2.0}
+VCODE=${VCODE:-30200}
 B=build/manual
 rm -rf "$B" && mkdir -p "$B"/{res,classes,apk} "$OUT"
 

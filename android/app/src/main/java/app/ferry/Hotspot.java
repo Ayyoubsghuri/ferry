@@ -12,6 +12,13 @@ import android.os.Looper;
 
 import org.json.JSONObject;
 
+import java.net.Inet4Address;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
+
 /**
  * Starts Android's "local-only hotspot": a Wi-Fi network created by this phone with no
  * internet access, so devices can share without a router.
@@ -52,12 +59,45 @@ final class Hotspot {
         return state;
     }
 
+    private Set<String> before = new HashSet<>();
+
+    static Set<String> ipv4s() {
+        Set<String> out = new HashSet<>();
+        try {
+            for (NetworkInterface ni : Collections.list(NetworkInterface.getNetworkInterfaces())) {
+                if (!ni.isUp() || ni.isLoopback()) continue;
+                for (InetAddress a : Collections.list(ni.getInetAddresses())) {
+                    if (a instanceof Inet4Address && a.isSiteLocalAddress()) out.add(ni.getName() + "=" + a.getHostAddress());
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        return out;
+    }
+
+    /** The phone's address on its own hotspot: the one that appeared when it started. */
+    private String hotspotIp() {
+        String fallback = null;
+        for (String e : ipv4s()) {
+            String name = e.substring(0, e.indexOf('=')), ip = e.substring(e.indexOf('=') + 1);
+            if (!before.contains(e)) return ip;
+            if (name.startsWith("ap") || name.startsWith("swlan") || name.equals("wlan1")) fallback = ip;
+        }
+        return fallback;
+    }
+
     private void emit(String s, String ssid, String pass, String message) {
+        emit(s, ssid, pass, message, null);
+    }
+
+    private void emit(String s, String ssid, String pass, String message, String ip) {
         try {
             JSONObject o = new JSONObject();
             o.put("state", s);
             if (ssid != null) o.put("ssid", ssid);
             if (pass != null) o.put("password", pass);
+            if (ip != null) o.put("ip", ip);
+            o.put("port", MainActivity.PORT);
             if (message != null) o.put("message", message);
             state = o.toString();
         } catch (Exception e) {
@@ -77,6 +117,7 @@ final class Hotspot {
             return;
         }
         WifiManager wm = (WifiManager) ctx.getSystemService(Context.WIFI_SERVICE);
+        before = ipv4s();
         try {
             wm.startLocalOnlyHotspot(new WifiManager.LocalOnlyHotspotCallback() {
                 @Override
@@ -97,7 +138,23 @@ final class Hotspot {
                     if (ssid != null && ssid.length() > 1 && ssid.startsWith("\"") && ssid.endsWith("\"")) {
                         ssid = ssid.substring(1, ssid.length() - 1);
                     }
-                    emit("on", ssid, pass, null);
+                    final String fs = ssid, fp = pass;
+                    emit("starting", null, null, null);
+                    // The hotspot's address takes a moment to appear.
+                    final Handler h = new Handler(Looper.getMainLooper());
+                    h.postDelayed(new Runnable() {
+                        int tries = 0;
+
+                        @Override
+                        public void run() {
+                            String ip = hotspotIp();
+                            if (ip == null && ++tries < 10) {
+                                h.postDelayed(this, 400);
+                                return;
+                            }
+                            emit("on", fs, fp, null, ip);
+                        }
+                    }, 500);
                 }
 
                 @Override

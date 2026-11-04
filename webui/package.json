@@ -1,7 +1,7 @@
 {
   "name": "ferry-ui",
   "private": true,
-  "version": "3.1.0",
+  "version": "3.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -12,11 +12,14 @@
     "@fontsource-variable/archivo": "^5.1.0",
     "@noble/ciphers": "^1.0.0",
     "@noble/hashes": "^1.5.0",
+    "jsqr": "^1.4.0",
     "lucide-react": "^0.460.0",
+    "qrcode": "^1.5.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@types/qrcode": "^1.5.5",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",

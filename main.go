@@ -23,7 +23,7 @@ import (
 	"ferry/internal/webdist"
 )
 
-var version = "3.1.0"
+var version = "3.2.0"
 
 //go:embed assets/icon.png
 var iconPNG []byte
@@ -82,7 +82,13 @@ func runApp(args []string) {
 	// Already running? Just bring up the window.
 	if !*headless && *port == 0 {
 		if url := runningInstance(); url != "" {
-			desktop.OpenApp(url)
+			// Ask the running Ferry to bring its window forward.
+			resp, err := http.Post(url+"api/show-window", "application/json", strings.NewReader("{}"))
+			if err == nil && resp.StatusCode == 200 {
+				resp.Body.Close()
+			} else {
+				desktop.OpenWindow(url)
+			}
 			return
 		}
 	}
@@ -133,6 +139,12 @@ func runApp(args []string) {
 		DiscoveryExtra: extra,
 		AutoAccept:     *autoAccept,
 		NoLocalOwner:   *noLocalOwner,
+		ShowWindow: func() func(string) {
+			if *headless {
+				return nil
+			}
+			return desktop.OpenWindow
+		}(),
 		SetStartAtLogin: func() func(bool) error {
 			if *headless {
 				return nil
@@ -146,7 +158,7 @@ func runApp(args []string) {
 
 	if *headless || !desktop.TraySupported {
 		if !*headless && !*noOpen {
-			desktop.OpenApp(srv.LocalURL())
+			desktop.OpenWindow(srv.LocalURL())
 		}
 		fmt.Printf("\nFerry is running. Open %s on this computer.\n", srv.LocalURL())
 		if u := srv.MDNSURL(); u != "" {
@@ -164,7 +176,7 @@ func runApp(args []string) {
 	}
 
 	if !*noOpen {
-		desktop.OpenApp(srv.LocalURL())
+		desktop.OpenWindow(srv.LocalURL())
 	}
 	shares := srv.LANURLs()
 	if u := srv.MDNSURL(); u != "" {

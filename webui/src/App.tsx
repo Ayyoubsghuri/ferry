@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ArrowUpFromLine, MonitorSmartphone, History as HistoryIcon, Lock, Moon, Sun } from 'lucide-react';
+import { ArrowUpFromLine, ArrowDownToLine, MonitorSmartphone, History as HistoryIcon, Lock, Moon, Sun, Minus, Square, Copy as Restore, X, LogOut } from 'lucide-react';
 import { api, browserName, guestApi, type Info, type Me } from './lib/api';
 import { SendPanel } from './components/SendPanel';
+import { ReceivePanel } from './components/ReceivePanel';
 import { DeviceSheet } from './components/DeviceSheet';
 import { DevicesPanel } from './components/DevicesPanel';
 import { HistoryPanel } from './components/HistoryPanel';
@@ -9,7 +10,7 @@ import { InboxHost } from './components/InboxHost';
 import { ChatSheet, type ChatTarget } from './components/ChatSheet';
 import { CodeEntry, ToastHost } from './components/common';
 
-type Tab = 'send' | 'devices' | 'history';
+type Tab = 'send' | 'receive' | 'devices' | 'history';
 
 // ---------- theme: light unless the person turns dark mode on ----------
 
@@ -29,6 +30,50 @@ function applyTheme(t: 'light' | 'dark') {
   } catch {
     /* older app */
   }
+}
+
+// ---------- Windows app window: the page is the title bar ----------
+
+const win = window as any;
+const framed = typeof win.ferryWinDrag === 'function';
+
+function WindowControls() {
+  const [max, setMax] = useState(false);
+  useEffect(() => {
+    if (!framed) return;
+    const sync = () => win.ferryWinIsMax?.().then((m: boolean) => setMax(!!m)).catch(() => {});
+    sync();
+    window.addEventListener('resize', sync);
+    return () => window.removeEventListener('resize', sync);
+  }, []);
+  if (!framed) return null;
+  return (
+    <div className="winctl">
+      <button aria-label="Minimize window" onClick={() => win.ferryWinMin()}>
+        <Minus size={16} aria-hidden />
+      </button>
+      <button aria-label={max ? 'Restore window' : 'Maximize window'} onClick={() => win.ferryWinMax().then((m: boolean) => setMax(!!m))}>
+        {max ? <Restore size={14} aria-hidden /> : <Square size={13} aria-hidden />}
+      </button>
+      <button className="close" aria-label="Close window" onClick={() => win.ferryWinClose()}>
+        <X size={17} aria-hidden />
+      </button>
+    </div>
+  );
+}
+
+// Dragging empty parts of the header moves the window; double-click maximizes.
+function titleBarHandlers() {
+  if (!framed) return {};
+  const empty = (e: React.MouseEvent) => !(e.target as HTMLElement).closest('button, a, input, textarea, nav');
+  return {
+    onMouseDown: (e: React.MouseEvent) => {
+      if (e.button === 0 && empty(e) && e.detail === 1) win.ferryWinDrag();
+    },
+    onDoubleClick: (e: React.MouseEvent) => {
+      if (empty(e)) win.ferryWinMax();
+    },
+  };
 }
 
 function PinGate({ name, onUnlocked }: { name: string; onUnlocked: () => void }) {
@@ -141,8 +186,9 @@ export default function App() {
 
   if (me?.locked) {
     return (
-      <div className="app">
-        <header className="topbar">
+      <div className={`app${framed ? ' framed' : ''}`}>
+        <WindowControls />
+        <header className="topbar" {...titleBarHandlers()}>
           <div className="brand">
             <img src="/icon-192.png" alt="" />
             Ferry
@@ -155,20 +201,25 @@ export default function App() {
   }
 
   const owner = !!me?.owner;
-  const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
+  const allTabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
     { id: 'send', label: 'Send', icon: <ArrowUpFromLine size={22} aria-hidden /> },
+    { id: 'receive', label: 'Receive', icon: <ArrowDownToLine size={22} aria-hidden /> },
     { id: 'devices', label: 'Devices', icon: <MonitorSmartphone size={22} aria-hidden /> },
     { id: 'history', label: 'History', icon: <HistoryIcon size={22} aria-hidden /> },
   ];
+  const tabs = owner ? allTabs : allTabs.slice(0, 2);
+  const bridge = win.FerryAndroid;
+  const joined = !owner && !!bridge?.joinedHotspot?.();
 
   return (
-    <div className="app">
-      <header className="topbar">
+    <div className={`app${framed ? ' framed' : ''}`}>
+      <WindowControls />
+      <header className="topbar" {...titleBarHandlers()}>
         <div className="brand">
           <img src="/icon-192.png" alt="" />
           Ferry
         </div>
-        {owner ? (
+        {tabs.length > 1 ? (
           <nav className="topnav desktop-only" aria-label="Sections">
             {tabs.map((t) => (
               <button key={t.id} aria-current={tab === t.id ? 'page' : undefined} onClick={() => setTab(t.id)}>
@@ -179,20 +230,26 @@ export default function App() {
           </nav>
         ) : null}
         {themeButton}
+        {joined ? (
+          <button className="btn ghost" onClick={() => bridge.leaveHotspot()}>
+            <LogOut size={18} aria-hidden /> Leave
+          </button>
+        ) : null}
         <button className="device-chip" onClick={() => setSheet(true)} aria-label="About this device">
           <i className={`dot${online ? '' : ' off'}`} aria-hidden />
           <span>{online ? (me ? (owner ? me.name : `Connected to ${me.name}`) : 'Connecting…') : 'Not connected'}</span>
         </button>
       </header>
 
-      <main className={`main${owner ? '' : ' guest'}`}>
+      <main className="main">
         {!online ? (
           <div className="notice error" style={{ marginBottom: 16 }}>
             Lost contact with Ferry. Make sure it's running and this device is on the same Wi-Fi.
           </div>
         ) : null}
         <div className="narrow col">
-          {tab === 'send' || !owner ? <SendPanel me={me} active={tab === 'send'} devicesVersion={devicesVersion} /> : null}
+          {tab === 'send' ? <SendPanel me={me} active devicesVersion={devicesVersion} /> : null}
+          {tab === 'receive' ? <ReceivePanel owner={owner} onReceived={activity} /> : null}
           {tab === 'devices' && me && owner ? (
             <DevicesPanel me={me} refreshMe={refreshMe} version={devicesVersion} bump={bumpDevices} onOpenChat={setChat} />
           ) : null}
@@ -200,8 +257,8 @@ export default function App() {
         </div>
       </main>
 
-      {owner ? (
-        <nav className="tabbar" aria-label="Sections">
+      {tabs.length > 1 ? (
+        <nav className="tabbar" aria-label="Sections" style={{ gridTemplateColumns: `repeat(${tabs.length}, 1fr)` }}>
           {tabs.map((t) => (
             <button key={t.id} aria-current={tab === t.id ? 'page' : undefined} onClick={() => setTab(t.id)}>
               {t.icon}
