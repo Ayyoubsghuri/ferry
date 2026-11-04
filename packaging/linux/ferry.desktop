@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Ferry
+Comment=Send files and text to devices on your network
+Exec=ferry
+Icon=ferry
+Terminal=false
+Categories=Network;FileTransfer;

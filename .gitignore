@@ -1,0 +1,12 @@
+node_modules/
+dist/
+go.work
+go.work.sum
+*.syso
+android/build/
+android/app/build/
+android/.gradle/
+android/local.properties
+android/app/src/main/jniLibs/
+android/.idea/
+*.apk.idsig

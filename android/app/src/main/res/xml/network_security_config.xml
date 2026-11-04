@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Ferry talks to its own server and to other Ferry devices on the local network
+         over plain HTTP; device-to-device transfers use pinned HTTPS. -->
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

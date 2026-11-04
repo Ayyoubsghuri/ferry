@@ -1,0 +1,51 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'app.ferry'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'app.ferry'
+        minSdk 24
+        targetSdk 35
+        versionCode 30100
+        versionName '3.1.0'
+    }
+
+    signingConfigs {
+        // Shared key so every build (local, CI, Android Studio) can update the others.
+        // Replace with your own private keystore before publishing anywhere public.
+        shared {
+            storeFile rootProject.file('keystore/ferry.jks')
+            storePassword 'ferryapp'
+            keyAlias 'ferry'
+            keyPassword 'ferryapp'
+        }
+    }
+
+    buildTypes {
+        debug {
+            signingConfig signingConfigs.shared
+        }
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.shared
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    packaging {
+        jniLibs {
+            // The server is a standalone executable shipped as lib*.so; it must be
+            // extracted to nativeLibraryDir so it can be run, and must not be stripped.
+            useLegacyPackaging true
+            keepDebugSymbols += ['**/libferry.so']
+        }
+    }
+}
