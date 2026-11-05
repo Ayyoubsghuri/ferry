@@ -1,6 +1,6 @@
 # Ferry
 
-<video src="https://github.com/Ayyoubsghuri/ferry/raw/main/Ferry-promo/Ferry-promo.mp4" controls width="100%" style="max-width: 800px; border-radius: 8px;"></video>
+<video src="https://github.com/user-attachments/assets/65b5be1f-735e-442d-ada2-1df254bd70b4" controls width="100%" style="max-width: 800px; border-radius: 8px;"></video>
 
 Send files, folders, text and messages between your phone and computers on the same Wi‑Fi. No account, no cloud, no internet needed, and no certificate warnings.
 
