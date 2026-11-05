@@ -1,5 +1,7 @@
 # Ferry
 
+<video src="https://github.com/Ayyoubsghuri/ferry/raw/main/Ferry-promo/Ferry-promo.mp4" controls width="100%" style="max-width: 800px; border-radius: 8px;"></video>
+
 Send files, folders, text and messages between your phone and computers on the same Wi‑Fi. No account, no cloud, no internet needed, and no certificate warnings.
 
 Ferry runs as a desktop app (Windows, macOS, Linux), an Android app, a command-line tool, and works in any browser on the network.
@@ -34,15 +36,15 @@ Computers save to `Downloads/Ferry` (folder structure kept); phones and browsers
 The same `ferry` program is the CLI. Commands use the Ferry already running on the computer; if none is running, a temporary one runs inside the command.
 
 ```bash
-ferry serve                              # run without a window (servers, Raspberry Pi, Steam Deck)
-ferry serve -auto-accept                 #   …and accept everything paired devices send
-ferry devices                            # who's around
+ferry serve # run without a window (servers, Raspberry Pi, Steam Deck)
+ferry serve -auto-accept # …and accept everything paired devices send
+ferry devices # who's around
 ferry send report.pdf photos/ --to "Pixel" --text "check page 4"
-ferry send notes.txt                     # without --to: prints a code another Ferry can use with "ferry receive"
-ferry receive 482913 -o ~/Downloads      # add --password for locked shares
-ferry inbox                              # incoming requests
+ferry send notes.txt # without --to: prints a code another Ferry can use with "ferry receive"
+ferry receive 482913 -o ~/Downloads # add --password for locked shares
+ferry inbox # incoming requests
 ferry inbox accept 84a2aa6c
-echo "some text" | ferry clip            # send text to paired devices (no argument = clipboard)
+echo "some text" | ferry clip # send text to paired devices (no argument = clipboard)
 ferry message Pixel "on my way"
 ```
 
@@ -50,12 +52,12 @@ On Windows, run `Ferry-3.2.0-windows-x64.exe <command>` from a terminal (rename 
 
 ## Install
 
-| Platform | File | Notes |
-|---|---|---|
-| Android 7+ | `Ferry-3.2.0-android.apk` | Allow "install unknown apps" for your browser or file manager. |
-| Windows 10/11 | `Ferry-3.2.0-windows-x64.exe` | Single file. SmartScreen may warn because it isn't code‑signed ("More info → Run anyway"). Allow it through the firewall on **private** networks. |
-| Linux | `Ferry-3.2.0-linux-x64.tar.gz` | Extract and run `./install.sh`, or just `./ferry`. |
-| macOS | built by the GitHub workflow | Needs a Mac to build the menu‑bar version (see below). |
+| Platform      | File                           | Notes                                                                                                                                             |
+| ------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Android 7+    | `Ferry-3.2.0-android.apk`      | Allow "install unknown apps" for your browser or file manager.                                                                                    |
+| Windows 10/11 | `Ferry-3.2.0-windows-x64.exe`  | Single file. SmartScreen may warn because it isn't code‑signed ("More info → Run anyway"). Allow it through the firewall on **private** networks. |
+| Linux         | `Ferry-3.2.0-linux-x64.tar.gz` | Extract and run `./install.sh`, or just `./ferry`.                                                                                                |
+| macOS         | built by the GitHub workflow   | Needs a Mac to build the menu‑bar version (see below).                                                                                            |
 
 ### Network
 - A browser on the same computer as Ferry gets the full app; browsers on other devices get the send/receive screen and appear in the device list.
@@ -67,13 +69,13 @@ On Windows, run `Ferry-3.2.0-windows-x64.exe <command>` from a terminal (rename 
 ## Project layout
 
 ```
-main.go, cli.go             entry point: app, headless server, command-line tool
-internal/server/            Go backend: API, storage, TLS, discovery, pairing, inbox, chat, history
-internal/desktop/           tray icon, app window, clipboard, start at login
-internal/webdist/dist/      built web UI (embedded into the binary)
-webui/                      React + Vite source for the UI
-android/                    Android app (WebView shell running the Go server as a background service)
-packaging/, scripts/        desktop packaging and build script
+main.go, cli.go entry point: app, headless server, command-line tool
+internal/server/ Go backend: API, storage, TLS, discovery, pairing, inbox, chat, history
+internal/desktop/ tray icon, app window, clipboard, start at login
+internal/webdist/dist/ built web UI (embedded into the binary)
+webui/ React + Vite source for the UI
+android/ Android app (WebView shell running the Go server as a background service)
+packaging/, scripts/ desktop packaging and build script
 .github/workflows/build.yml builds every platform; tag v* to publish a release
 ```
 
@@ -84,24 +86,24 @@ packaging/, scripts/        desktop packaging and build script
 **Locally:**
 ```bash
 go mod tidy
-scripts/build.sh            # → dist/ (Windows + Linux); needs Go 1.24+, Node 18+, rsrc (go install github.com/akavel/rsrc@latest)
-scripts/build.sh macos      # on a Mac
-cd webui && npm install && npm run build && cd .. && go run . -port 7070    # run from source
+scripts/build.sh # → dist/ (Windows + Linux); needs Go 1.24+, Node 18+, rsrc (go install github.com/akavel/rsrc@latest)
+scripts/build.sh macos # on a Mac
+cd webui && npm install && npm run build && cd .. && go run . -port 7070 # run from source
 ```
 Android: build the server binaries into `android/app/src/main/jniLibs/` (see the workflow), then `cd android && ./gradlew assembleRelease`, or open `android/` in Android Studio.
 
 ### Flags for `ferry` / `ferry serve`
 ```
--port N           port (default 80, then 7070)
--name NAME        device name others see (default: computer name)
--host NAME        network name, default "ferry" → http://ferry.local
--save-dir DIR     where files sent straight to this device go (default ~/Downloads/Ferry)
--auto-accept      accept everything from paired devices without asking
--headless         no tray or window (same as "ferry serve")
--no-open          start in the tray without opening a window
--no-mdns          don't announce the .local name
--no-clipboard     don't touch the system clipboard
--data DIR         where Ferry keeps its state
+-port N port (default 80, then 7070)
+-name NAME device name others see (default: computer name)
+-host NAME network name, default "ferry" → http://ferry.local
+-save-dir DIR where files sent straight to this device go (default ~/Downloads/Ferry)
+-auto-accept accept everything from paired devices without asking
+-headless no tray or window (same as "ferry serve")
+-no-open start in the tray without opening a window
+-no-mdns don't announce the .local name
+-no-clipboard don't touch the system clipboard
+-data DIR where Ferry keeps its state
 ```
 
 ### Signing key
@@ -109,3 +111,4 @@ Android: build the server binaries into `android/app/src/main/jniLibs/` (see the
 
 ## License
 MIT
+```
